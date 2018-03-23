@@ -17,7 +17,7 @@ func printStats(gettable gom.ComputerStatGettable) {
 	gom.FatalErr(err)
 	fmt.Printf("Have %d cores\n", cores)
 
-	percent, err := gettable.GetLoadPercentage()
+	percent, err := gettable.GetLoadAvgPercentage()
 	gom.FatalErr(err)
 	fmt.Printf("Our last minute load percentage: %%%.2f\n", percent * 100)
 

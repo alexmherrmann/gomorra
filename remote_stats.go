@@ -69,7 +69,7 @@ func (r *Remote) GetCores() (int, error) {
 }
 
 // Get the last minutes load percentage
-func (r *Remote) GetLoadPercentage() (float32, error) {
+func (r *Remote) GetLoadAvgPercentage() (float32, error) {
 	cores, err := r.GetCores()
 	if err != nil {
 		return 0, err
