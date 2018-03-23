@@ -11,15 +11,10 @@ import (
 type Remote struct {
 	// This is the Hostname of the remote and is where calls will be made
 	Hostname string
+	// The ssh client associated with this remote, check that it's not nil before using
 	client   *ssh.Client
-}
-
-type OpenError struct {
-	hostname string
-}
-
-func (e *OpenError) Error() string {
-	return fmt.Sprint("Couldn't open client to %s", e.hostname)
+	// This will be nil until getcores is run for the first time
+	cores    *int
 }
 
 /*
@@ -33,8 +28,9 @@ func (r *Remote) Open(username string, privatekeypath string) error {
 	FatalErr(err)
 
 	config := &ssh.ClientConfig{
-		User:            username,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		User: username,
+		Auth: []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		// TODO: Change the below to something more secure in time
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 	//config.SetDefaults()
@@ -50,6 +46,7 @@ func (r *Remote) Open(username string, privatekeypath string) error {
 	return nil
 }
 
+// Just a little function to help with testing
 func (r *Remote) LsDir(path string) string {
 	sesh, err := r.client.NewSession()
 	FatalErr(err)
