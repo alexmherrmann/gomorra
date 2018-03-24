@@ -28,7 +28,7 @@ func (r *Remote) getCores() (int, error) {
 
 // returns the 3 load percentages for 1, 5 and 15 minutes
 func (r *Remote) getLoads() ([3]float32, error) {
-	var badReturn = [3]float32{1,1,1}
+	var badReturn = [3]float32{1, 1, 1}
 	//TODO: implement error handling
 	newSesh, err := r.client.NewSession()
 	if err != nil {
@@ -54,39 +54,49 @@ func (r *Remote) getLoads() ([3]float32, error) {
 }
 
 // This will only go to the server to get the number of cores if it hasn't already
-func (r *Remote) GetCores() (int, error) {
+func (r *Remote) GetCores(channel chan StatResult) {
+
 	if r.cores == nil {
 		cores, err := r.getCores()
 		if err == nil {
 			r.cores = new(int)
 			*r.cores = cores
-			return *r.cores, nil
+			channel <- StatResult{GenericResult: cores}
+			return
 		}
-		return -1, err
+		channel <- StatResult{Err: err}
+		return
 	} else {
-		return *r.cores, nil
+		channel <- StatResult{GenericResult: *r.cores}
+		return
 	}
 }
 
 // Get the last minutes load percentage
-func (r *Remote) GetLoadAvgPercentage() (float32, error) {
-	cores, err := r.GetCores()
-	if err != nil {
-		return 0, err
+func (r *Remote) GetLoadMinuteAvg(channel chan StatResult) {
+
+	coreResult := make(chan StatResult)
+	go r.GetCores(coreResult)
+	result := <-coreResult
+
+	var cores int
+	if v, ok := checkInt(result); ok {
+		cores = v
+	} else {
+		channel <- StatResult{Err: Wanted("int")}
+		return
+	}
+
+	if result.Err != nil {
+		channel <- StatResult{Err: result.Err}
+		return
 	}
 
 	avgs, err := r.getLoads()
 	if err != nil {
-		return 0, err
+		channel <- StatResult{Err: err}
+		return
 	}
 
-	return avgs[0]/float32(cores), nil
-}
-
-func (r *Remote) GetTotalMemory() (int, error) {
-	panic("implement me")
-}
-
-func (r *Remote) GetFreeMemory() (int, error) {
-	panic("implement me")
+	channel <- StatResult{GenericResult: avgs[0] / float32(cores)}
 }

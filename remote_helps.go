@@ -28,3 +28,11 @@ func (r *Remote) readFileFromSystem(path string) (*bytes.Buffer, error) {
 	return readBytes, nil
 }
 
+func checkInt(result StatResult) (int, bool) {
+	switch v := result.GenericResult.(type) {
+	case int:
+		return v, true
+	default:
+		return 0, false
+	}
+}
