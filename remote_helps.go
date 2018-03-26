@@ -6,8 +6,10 @@ import (
 )
 
 const envPath string = "/usr/bin/env"
+
 /*
  * Note that this requires an absolute path at the moment
+ * It also reads the ENTIRE file into memory so it's not suitable for large files
  */
 func (r *Remote) readFileFromSystem(path string) (*bytes.Buffer, error) {
 	readBytes := new(bytes.Buffer)
@@ -28,7 +30,8 @@ func (r *Remote) readFileFromSystem(path string) (*bytes.Buffer, error) {
 	return readBytes, nil
 }
 
-func checkInt(result StatResult) (int, bool) {
+// Check that a stat result is an int
+func CheckInt(result StatResult) (int, bool) {
 	switch v := result.GenericResult.(type) {
 	case int:
 		return v, true

@@ -4,7 +4,10 @@ import (
 	"strings"
 	"bytes"
 	"fmt"
+	"errors"
 )
+
+var NotImplementedErr = errors.New("Not implemented")
 
 // internal function that forces ssh connection
 func (r *Remote) getCores() (int, error) {
@@ -19,6 +22,8 @@ func (r *Remote) getCores() (int, error) {
 	for _, line := range splitStrings {
 		if strings.Index(line, "cpu") >= 0 {
 			count++
+		} else {
+			break
 		}
 	}
 
@@ -38,13 +43,12 @@ func (r *Remote) getLoads() ([3]float32, error) {
 	readBytes := new(bytes.Buffer)
 	newSesh.Stdout = readBytes
 
+	//TODO: change this to use the readFileFromSystem function
 	//TODO: implement error handling
 	err = newSesh.Run("/usr/bin/env cat /proc/loadavg")
 	if err != nil {
 		return badReturn, err
 	}
-
-	//DataLogger.Printf("Got [%s] for loadavg", strings.Trim(readBytes.String(), "\n"))
 
 	var avg1, avg2, avg3 float32
 
@@ -80,7 +84,7 @@ func (r *Remote) GetLoadMinuteAvg(channel chan StatResult) {
 	result := <-coreResult
 
 	var cores int
-	if v, ok := checkInt(result); ok {
+	if v, ok := CheckInt(result); ok {
 		cores = v
 	} else {
 		channel <- StatResult{Err: Wanted("int")}
@@ -99,4 +103,56 @@ func (r *Remote) GetLoadMinuteAvg(channel chan StatResult) {
 	}
 
 	channel <- StatResult{GenericResult: avgs[0] / float32(cores)}
+}
+
+func (r *Remote) getMeminfo() (string, error) {
+	meminfo, err := r.readFileFromSystem("/proc/meminfo")
+	if err != nil {
+		return "", err
+	}
+
+	return meminfo.String(), nil
+}
+
+const stringFormat = `MemTotal: %d kB
+MemFree: %d kB
+MemAvailable: %d kB`
+
+// Returns the total memory in kb
+func (r *Remote) getTotalMemory() (int, error) {
+	memInfoString, err := r.getMeminfo()
+
+	const stringFormat = `MemTotal: %d kB
+MemFree: %d kB
+MemAvailable: %d kB`
+
+	if err != nil {
+		return 0, err
+	}
+
+	var total int
+
+	fmt.Sscanf(memInfoString, stringFormat, &total)
+
+	return total, nil
+}
+
+func (r *Remote) GetTotalMemory(channel chan StatResult) {
+	// go and fetch the total amount of memory
+	if r.totalMemKb == nil {
+		totalMem, err := r.getTotalMemory()
+		if err != nil {
+			channel <- StatResult{Err: err}
+		}
+		r.totalMemKb = new(int)
+		*r.totalMemKb = totalMem
+		channel <- StatResult{GenericResult: *r.totalMemKb}
+		return
+	}
+
+	channel <- StatResult{GenericResult: r.totalMemKb}
+}
+
+func (r *Remote) GetFreeMemory(channel chan StatResult) {
+	channel <- StatResult{Err: NotImplementedErr}
 }

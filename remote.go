@@ -11,10 +11,15 @@ import (
 type Remote struct {
 	// This is the Hostname of the remote and is where calls will be made
 	Hostname string
+
 	// The ssh client associated with this remote, check that it's not nil before using
-	client   *ssh.Client
+	client *ssh.Client
+
 	// This will be nil until getcores is run for the first time
-	cores    *int
+	cores *int
+
+	// This will be nil until the first time it's checked
+	totalMemKb *int
 }
 
 /*

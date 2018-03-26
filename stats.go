@@ -35,7 +35,7 @@ type ComputerStatGettable interface {
 	// Get the last minute load average
 	GetLoadMinuteAvg(chan StatResult)
 	// Get the total amount of memory on the system
-	//GetTotalMemory(chan StatResult)
+	GetTotalMemory(chan StatResult)
 	// Get the amount of free memory
-	//GetFreeMemory(chan StatResult)
+	GetFreeMemory(chan StatResult)
 }
