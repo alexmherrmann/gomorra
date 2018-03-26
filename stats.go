@@ -13,14 +13,23 @@ const (
 
 type IncorrectTypeError struct {
 	wanted string
+	msg    string
 }
 
 func (i IncorrectTypeError) Error() string {
-	return fmt.Sprintf("We wanted a type of: %s", i.wanted)
+	if len(i.msg) == 0 {
+		return fmt.Sprintf("We wanted a type of: %s", i.wanted)
+	} else {
+		return fmt.Sprintf("Wanted %s: %s", i.wanted, i.msg)
+	}
 }
 
 func Wanted(wanted string) IncorrectTypeError {
-	return IncorrectTypeError{wanted}
+	return IncorrectTypeError{wanted, ""}
+}
+
+func WantedMessage(wanted string, msg string) IncorrectTypeError {
+	return IncorrectTypeError{wanted, msg}
 }
 
 type StatResult struct {
@@ -38,4 +47,43 @@ type ComputerStatGettable interface {
 	GetTotalMemory(chan StatResult)
 	// Get the amount of free memory
 	GetFreeMemory(chan StatResult)
+	// Get the amount of available memory
+	GetAvailableMemory(chan StatResult)
+}
+
+func GetUsedMemory(channel chan StatResult, gettable ComputerStatGettable) {
+	availableChan := make(chan StatResult)
+	totalChan := make(chan StatResult)
+
+	go gettable.GetTotalMemory(totalChan)
+	go gettable.GetAvailableMemory(availableChan)
+
+	availableResult := <-availableChan
+	totalResult := <-totalChan
+
+	if availableResult.Err != nil {
+		channel <- availableResult
+		return
+	}
+
+	if totalResult.Err != nil {
+		channel <- totalResult
+		return
+	}
+
+	total, ok := CheckInt(totalResult)
+	CheckInt(totalResult)
+	if !ok {
+		channel <- StatResult{Err: WantedMessage("int", "total")}
+		return
+	}
+
+	available, ok := CheckInt(availableResult)
+
+	if !ok {
+		channel <- StatResult{Err: WantedMessage("int", "available")}
+		return
+	}
+
+	channel <- StatResult{GenericResult: total - available}
 }

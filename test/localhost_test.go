@@ -10,31 +10,60 @@ import (
 func printStats(gettable gom.ComputerStatGettable, t *testing.T) {
 	resultChan := make(chan gom.StatResult)
 
+	failErr := func(err error) {
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+	}
+
 	go gettable.GetCores(resultChan)
 
 	result := <-resultChan
-	gom.FatalErr(result.Err)
+	failErr(result.Err)
 
-	cores := result.GenericResult.(int)
+	cores, ok := gom.CheckInt(result)
+	if !ok {
+		t.Fatal("didn't get int")
+	}
 	t.Logf("Have %d cores\n", cores)
 
 	go gettable.GetLoadMinuteAvg(resultChan)
 	result = <-resultChan
-	gom.FatalErr(result.Err)
+	failErr(result.Err)
 	t.Logf("Our last minute load percentage: %%%.2f\n", result.GenericResult.(float32)*100)
 
 	go gettable.GetTotalMemory(resultChan)
 	result = <-resultChan
-	gom.FatalErr(result.Err)
+	failErr(result.Err)
 
 	var totalKb int
-	totalKb, ok := gom.CheckInt(result)
+	totalKb, ok = gom.CheckInt(result)
 
 	if !ok {
-		t.Error("Didn't get an int back")
-		t.FailNow()
+		t.Fatal("Didn't get an int back")
 	}
 	t.Logf("Have %d Mb of total memory\n", totalKb/1024)
+
+	go gettable.GetAvailableMemory(resultChan)
+	result = <-resultChan
+	failErr(result.Err)
+
+	var freeKb int
+	freeKb, ok = gom.CheckInt(result)
+	if !ok {
+		t.Fatal("Didn't get an int back")
+	}
+	t.Logf("Have %d Mb of available memory\n", freeKb/1024)
+
+	go gom.GetUsedMemory(resultChan, gettable)
+	result = <-resultChan
+	failErr(result.Err)
+
+	available, ok := gom.CheckInt(result)
+	if !ok {
+		t.Fatal("Didn't get an int back")
+	}
+	t.Logf("Have %d Mb of used memory", available/1024)
 }
 
 // This only works on my local machine

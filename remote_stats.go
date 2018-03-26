@@ -122,10 +122,6 @@ MemAvailable: %d kB`
 func (r *Remote) getTotalMemory() (int, error) {
 	memInfoString, err := r.getMeminfo()
 
-	const stringFormat = `MemTotal: %d kB
-MemFree: %d kB
-MemAvailable: %d kB`
-
 	if err != nil {
 		return 0, err
 	}
@@ -143,6 +139,7 @@ func (r *Remote) GetTotalMemory(channel chan StatResult) {
 		totalMem, err := r.getTotalMemory()
 		if err != nil {
 			channel <- StatResult{Err: err}
+			return
 		}
 		r.totalMemKb = new(int)
 		*r.totalMemKb = totalMem
@@ -150,9 +147,38 @@ func (r *Remote) GetTotalMemory(channel chan StatResult) {
 		return
 	}
 
-	channel <- StatResult{GenericResult: r.totalMemKb}
+	channel <- StatResult{GenericResult: *r.totalMemKb}
 }
 
 func (r *Remote) GetFreeMemory(channel chan StatResult) {
-	channel <- StatResult{Err: NotImplementedErr}
+	memInfoString, err := r.getMeminfo()
+
+	if err != nil {
+		channel <- StatResult{Err: err}
+		return
+	}
+
+	var free int
+
+	// we use free twice to overwrite the first one so we don't need to have a fake variable
+	fmt.Sscanf(memInfoString, stringFormat, &free, &free)
+
+	channel <- StatResult{GenericResult: free}
 }
+
+func (r *Remote) GetAvailableMemory(channel chan StatResult) {
+	memInfoString, err := r.getMeminfo()
+
+	if err != nil {
+		channel <- StatResult{Err: err}
+		return
+	}
+
+	var available int
+
+	// we use available thrice to overwrite the first one so we don't need to have a fake variable
+	fmt.Sscanf(memInfoString, stringFormat, &available, &available, &available)
+
+	channel <- StatResult{GenericResult: available}
+}
+
