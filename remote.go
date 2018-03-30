@@ -3,7 +3,6 @@ package gomorra
 import (
 	"golang.org/x/crypto/ssh"
 	"fmt"
-	"io/ioutil"
 	"bytes"
 	"log"
 )
@@ -20,21 +19,19 @@ type Remote struct {
 
 	// This will be nil until the first time it's checked
 	totalMemKb *int
+
+	username string
+	methods  []ssh.AuthMethod
 }
 
 /*
  * Open up connection using the current users private key file
  */
-func (r *Remote) Open(username string, privatekeypath string) error {
-
-	privateBytes, err := ioutil.ReadFile(privatekeypath)
-	FatalErr(err)
-	signer, err := ssh.ParsePrivateKey(privateBytes)
-	FatalErr(err)
+func (r *Remote) Open() error {
 
 	config := &ssh.ClientConfig{
-		User: username,
-		Auth: []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		User: r.username,
+		Auth: r.methods,
 		// TODO: Change the below to something more secure in time
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}

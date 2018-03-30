@@ -3,7 +3,7 @@ package test
 import "testing"
 
 import (
-	gom "alexmherrmann.com/gomorra"
+	gom "github.com/alexmherrmann/gomorra"
 )
 
 // TODO: make these more type safe
@@ -66,17 +66,27 @@ func printStats(gettable gom.ComputerStatGettable, t *testing.T) {
 	t.Logf("Have %d Mb of used memory", available/1024)
 }
 
-// This only works on my local machine
+// This only works when you have a config.json with a host that has a prettyname of localhost
 func TestLocalhost(t *testing.T) {
-	localhost := gom.Remote{
-		Hostname: "localhost:22",
-	}
+	config, err := gom.ReadConfigFile("config.json")
 
-	err := localhost.Open("alex", "/home/alex/.ssh/id_rsa")
 	if err != nil {
-		t.Error("Couldn't successfully open localhost:\n" + err.Error())
+		t.Fatal(err)
 	}
 
-	printStats(&localhost, t)
+	for _, host := range config.Hosts {
+		if host.Prettyname == "localhost" {
+			localhost, err := gom.GetRemoteFromHostConfig(host)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+			err = localhost.Open()
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+			printStats(localhost, t)
+			return
+		}
+	}
 
 }
