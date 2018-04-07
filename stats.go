@@ -5,10 +5,14 @@ import (
 )
 
 const (
-	Cores         = iota
-	LoadMinuteAvg
-	TotalMemory
-	FreeMemory
+	TError         = -3
+	TUnImplemented = 0
+	TCores         = iota
+	TLoadMinuteAvg
+	TTotalMemory
+	TFreeMemory
+	TAvailableMemory
+	TUptime
 )
 
 type IncorrectTypeError struct {
@@ -36,6 +40,7 @@ type StatResult struct {
 	// This is probably a really bad design decision but let's see how it happens
 	GenericResult interface{}
 	Err           error
+	Type          int
 }
 
 type ComputerStatGettable interface {
@@ -49,6 +54,8 @@ type ComputerStatGettable interface {
 	GetFreeMemory(chan<- StatResult)
 	// Get the amount of available memory
 	GetAvailableMemory(chan<- StatResult)
+	// Get the number of seconds the system has been up
+	GetNumberOfSecondsUptime(chan<- StatResult)
 }
 
 func GetUsedMemory(channel chan StatResult, gettable ComputerStatGettable) {

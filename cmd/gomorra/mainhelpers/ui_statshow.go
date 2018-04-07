@@ -7,9 +7,10 @@ import (
 	"sort"
 )
 
+type statStore map[string]int
 var state = struct {
 	mutex       sync.Mutex
-	percentages map[string]int
+	percentages statStore
 	grid        *t.Grid
 	logger      *log.Logger
 }{}

@@ -1,13 +1,20 @@
 package gomorra
 
 import (
-	"strings"
 	"bytes"
-	"fmt"
 	"errors"
+	"fmt"
+	"strings"
 )
 
 var NotImplementedErr = errors.New("Not implemented")
+
+func errResult(err error) StatResult {
+	return StatResult{
+		Err:err,
+		Type: TError,
+	}
+}
 
 // internal function that forces ssh connection
 func (r *Remote) getCores() (int, error) {
@@ -59,19 +66,24 @@ func (r *Remote) getLoads() ([3]float32, error) {
 
 // This will only go to the server to get the number of cores if it hasn't already
 func (r *Remote) GetCores(channel chan<- StatResult) {
+	toReturn := StatResult {
+		Type: TCores,
+	}
 
 	if r.cores == nil {
 		cores, err := r.getCores()
 		if err == nil {
 			r.cores = new(int)
 			*r.cores = cores
-			channel <- StatResult{GenericResult: cores}
+			toReturn.GenericResult = *r.cores
+			channel <- toReturn
 			return
 		}
-		channel <- StatResult{Err: err}
+		channel <- errResult(err)
 		return
 	} else {
-		channel <- StatResult{GenericResult: *r.cores}
+		toReturn.GenericResult = *r.cores
+		channel <- toReturn
 		return
 	}
 }
@@ -102,7 +114,10 @@ func (r *Remote) GetLoadMinuteAvg(channel chan<- StatResult) {
 		return
 	}
 
-	channel <- StatResult{GenericResult: avgs[0] / float32(cores)}
+	channel <- StatResult{
+		GenericResult: avgs[0] / float32(cores),
+		Type:          TLoadMinuteAvg,
+	}
 }
 
 func (r *Remote) getMeminfo() (string, error) {
@@ -143,11 +158,18 @@ func (r *Remote) GetTotalMemory(channel chan<- StatResult) {
 		}
 		r.totalMemKb = new(int)
 		*r.totalMemKb = totalMem
-		channel <- StatResult{GenericResult: *r.totalMemKb}
+		channel <- StatResult{
+			GenericResult: *r.totalMemKb,
+			Type:TTotalMemory,
+		}
 		return
 	}
 
-	channel <- StatResult{GenericResult: *r.totalMemKb}
+	channel <- StatResult{
+		GenericResult: *r.totalMemKb,
+		Type:TTotalMemory,
+	}
+
 }
 
 func (r *Remote) GetFreeMemory(channel chan<- StatResult) {
@@ -163,7 +185,10 @@ func (r *Remote) GetFreeMemory(channel chan<- StatResult) {
 	// we use free twice to overwrite the first one so we don't need to have a fake variable
 	fmt.Sscanf(memInfoString, stringFormat, &free, &free)
 
-	channel <- StatResult{GenericResult: free}
+	channel <- StatResult{
+		GenericResult: free,
+		Type:          TFreeMemory,
+	}
 }
 
 func (r *Remote) GetAvailableMemory(channel chan<- StatResult) {
@@ -179,5 +204,12 @@ func (r *Remote) GetAvailableMemory(channel chan<- StatResult) {
 	// we use available thrice to overwrite the first one so we don't need to have a fake variable
 	fmt.Sscanf(memInfoString, stringFormat, &available, &available, &available)
 
-	channel <- StatResult{GenericResult: available}
+	channel <- StatResult{
+		GenericResult: available,
+		Type:          TAvailableMemory,
+	}
+}
+
+func (r *Remote) GetNumberOfSecondsUptime(channel chan<- StatResult) {
+	channel <- StatResult{Err:NotImplementedErr}
 }
