@@ -58,7 +58,7 @@ func (r *Remote) getLoads() ([3]float32, error) {
 }
 
 // This will only go to the server to get the number of cores if it hasn't already
-func (r *Remote) GetCores(channel chan StatResult) {
+func (r *Remote) GetCores(channel chan<- StatResult) {
 
 	if r.cores == nil {
 		cores, err := r.getCores()
@@ -77,7 +77,7 @@ func (r *Remote) GetCores(channel chan StatResult) {
 }
 
 // Get the last minutes load percentage
-func (r *Remote) GetLoadMinuteAvg(channel chan StatResult) {
+func (r *Remote) GetLoadMinuteAvg(channel chan<- StatResult) {
 
 	coreResult := make(chan StatResult)
 	go r.GetCores(coreResult)
@@ -133,7 +133,7 @@ func (r *Remote) getTotalMemory() (int, error) {
 	return total, nil
 }
 
-func (r *Remote) GetTotalMemory(channel chan StatResult) {
+func (r *Remote) GetTotalMemory(channel chan<- StatResult) {
 	// go and fetch the total amount of memory
 	if r.totalMemKb == nil {
 		totalMem, err := r.getTotalMemory()
@@ -150,7 +150,7 @@ func (r *Remote) GetTotalMemory(channel chan StatResult) {
 	channel <- StatResult{GenericResult: *r.totalMemKb}
 }
 
-func (r *Remote) GetFreeMemory(channel chan StatResult) {
+func (r *Remote) GetFreeMemory(channel chan<- StatResult) {
 	memInfoString, err := r.getMeminfo()
 
 	if err != nil {
@@ -166,7 +166,7 @@ func (r *Remote) GetFreeMemory(channel chan StatResult) {
 	channel <- StatResult{GenericResult: free}
 }
 
-func (r *Remote) GetAvailableMemory(channel chan StatResult) {
+func (r *Remote) GetAvailableMemory(channel chan<- StatResult) {
 	memInfoString, err := r.getMeminfo()
 
 	if err != nil {

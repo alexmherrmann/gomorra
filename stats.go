@@ -40,15 +40,15 @@ type StatResult struct {
 
 type ComputerStatGettable interface {
 	// Get the number of cores in the system
-	GetCores(chan StatResult)
+	GetCores(chan<- StatResult)
 	// Get the last minute load average
-	GetLoadMinuteAvg(chan StatResult)
+	GetLoadMinuteAvg(chan<- StatResult)
 	// Get the total amount of memory on the system
-	GetTotalMemory(chan StatResult)
+	GetTotalMemory(chan<- StatResult)
 	// Get the amount of free memory
-	GetFreeMemory(chan StatResult)
+	GetFreeMemory(chan<- StatResult)
 	// Get the amount of available memory
-	GetAvailableMemory(chan StatResult)
+	GetAvailableMemory(chan<- StatResult)
 }
 
 func GetUsedMemory(channel chan StatResult, gettable ComputerStatGettable) {
