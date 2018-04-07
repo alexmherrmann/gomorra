@@ -40,7 +40,7 @@ func GetAllDisplayableStats(configFilePath string) []DisplayableStat {
 	listToReturn := make([]DisplayableStat, 0)
 
 	for _, config := range readConfig.Hosts {
-		remote, err := g.GetRemoteFromHostConfig(config)
+		remote, err := g.GetRemoteFromHostConfig(config, mainLogger)
 		if err != nil {
 			mainLogger.Fatalln(err.Error())
 		}
@@ -60,11 +60,12 @@ func GetAllDisplayableStats(configFilePath string) []DisplayableStat {
 	return listToReturn
 }
 
-var mainLogger log.Logger
+var mainLogger *log.Logger
 
 func main() {
 
-	err, mainLogger := getMainLogger()
+	var err error
+	err, mainLogger = getMainLogger()
 	if err != nil {
 		mainLogger.Fatalln(err.Error())
 	}
@@ -107,42 +108,51 @@ func main() {
 	exit := false;
 
 	go func() {
-		for range time.Tick(2 * time.Second) {
+		for range time.Tick(1 * time.Second) {
 			ShowStats()
 		}
 	}()
+
+	group := sync.WaitGroup{}
 
 	mainLogger.Println("beginning listen")
 	for true {
 
 		for _, toDisplay := range statStuff {
-			remote := toDisplay.Remote
-			config := toDisplay.Config
-			channel := toDisplay.LoadChannel
+			group.Add(1)
+			mainLogger.Printf("starting routine for %s\n", toDisplay.Remote.Hostname)
+			go func(d DisplayableStat) {
+				defer group.Done()
+				remote := d.Remote
+				config := d.Config
+				channel := d.LoadChannel
 
-			go remote.GetLoadMinuteAvg(channel)
-			result := <-channel
+				go remote.GetLoadMinuteAvg(channel)
+				result := <-channel
 
-			floatVal, ok := g.CheckFloat(result)
-			if ok {
-				mainLogger.Printf("Got a result for %s! %.3f\n", config.Prettyname, floatVal)
-				namedResult := NamedPercentageResult{
-					Name: config.Prettyname,
-					Result: int(floatVal * 100),
+				floatVal, ok := g.CheckFloat(result)
+				if ok {
+					mainLogger.Printf("Got a result for %s! %.3f\n", config.Prettyname, floatVal)
+					namedResult := NamedPercentageResult{
+						Name:   config.Prettyname,
+						Result: int(floatVal * 100),
+					}
+					displayResultListenerChannel <- namedResult
+
+				} else {
+					mainLogger.Println("Got a bad result from the channel")
 				}
-				displayResultListenerChannel <- namedResult
 
-
-			} else {
-				mainLogger.Println("Got a bad result from the channel")
-			}
+			}(toDisplay)
 		}
+
+		group.Wait()
 
 		select {
 		case <-quitChan:
 			exit = true
 			break
-		case <-time.After(5 * time.Second):
+		case <-time.After(2 * time.Second):
 			continue
 		}
 

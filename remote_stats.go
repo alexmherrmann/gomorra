@@ -181,4 +181,3 @@ func (r *Remote) GetAvailableMemory(channel chan<- StatResult) {
 
 	channel <- StatResult{GenericResult: available}
 }
-

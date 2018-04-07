@@ -4,6 +4,7 @@ import (
 	t "github.com/gizak/termui"
 	"sync"
 	"log"
+	"sort"
 )
 
 var state = struct {
@@ -33,7 +34,6 @@ func BeginListen(c <-chan NamedPercentageResult, logger *log.Logger) {
 
 func ReceiveResults(listenerChannel <-chan NamedPercentageResult) {
 	for received := range listenerChannel {
-		state.logger.Printf("Received result %s = %d\n", received.Name, received.Result)
 		// TODO: rethink having to register
 		state.mutex.Lock()
 		state.percentages[received.Name] = received.Result
@@ -43,7 +43,6 @@ func ReceiveResults(listenerChannel <-chan NamedPercentageResult) {
 
 func buildGridFromCurrentValues() {
 	grid := t.NewGrid()
-	state.logger.Println("Building grid from values")
 
 	grid.Width = t.TermWidth()
 	grid.X = 0
@@ -52,8 +51,14 @@ func buildGridFromCurrentValues() {
 
 	//rows := make([]*t.Row, len(state.percentages))
 
+	state.logger.Printf("have percentages: %d\n", len(state.percentages))
+	var keys []string = make([]string, 0, 5)
 	for key := range state.percentages {
-		state.logger.Println("have key: " + key)
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
 		gauge := t.NewGauge()
 		value := state.percentages[key]
 		gauge.BorderLabel = key

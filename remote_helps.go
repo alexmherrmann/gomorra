@@ -5,6 +5,7 @@ import (
 	"errors"
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
+	"log"
 )
 
 const envPath string = "/usr/bin/env"
@@ -59,9 +60,10 @@ func GetSignerFromPrivateKeyWithPassword(privateKeyPath string, password string)
 	return nil, NotImplementedErr
 }
 
-func GetRemoteFromHostConfig(config HostConfig) (*Remote, error) {
+func GetRemoteFromHostConfig(config HostConfig, logger *log.Logger) (*Remote, error) {
 
 	toReturn := new(Remote)
+	toReturn.Logger = logger
 	toReturn.Hostname = config.Hostname
 
 	if len(config.Username) <= 0 {

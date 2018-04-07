@@ -8,6 +8,7 @@ import (
 )
 
 type Remote struct {
+	Logger *log.Logger
 	// This is the Hostname of the remote and is where calls will be made
 	Hostname string
 
