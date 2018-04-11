@@ -65,6 +65,7 @@ func (r *Remote) getLoads() ([3]float32, error) {
 }
 
 // This will only go to the server to get the number of cores if it hasn't already
+// Statresult will have an int
 func (r *Remote) GetCores(channel chan<- StatResult) {
 	toReturn := StatResult {
 		Type: TCores,
@@ -88,7 +89,7 @@ func (r *Remote) GetCores(channel chan<- StatResult) {
 	}
 }
 
-// Get the last minutes load percentage
+// Get the last minutes load percentage as FLOAT
 func (r *Remote) GetLoadMinuteAvg(channel chan<- StatResult) {
 
 	coreResult := make(chan StatResult)
@@ -148,6 +149,7 @@ func (r *Remote) getTotalMemory() (int, error) {
 	return total, nil
 }
 
+// Will contain INT of Total kb
 func (r *Remote) GetTotalMemory(channel chan<- StatResult) {
 	// go and fetch the total amount of memory
 	if r.totalMemKb == nil {
@@ -172,6 +174,7 @@ func (r *Remote) GetTotalMemory(channel chan<- StatResult) {
 
 }
 
+// Statresult will have INT of Free KB
 func (r *Remote) GetFreeMemory(channel chan<- StatResult) {
 	memInfoString, err := r.getMeminfo()
 
@@ -191,6 +194,7 @@ func (r *Remote) GetFreeMemory(channel chan<- StatResult) {
 	}
 }
 
+// Statresult should contain an INT of the amount of available kilobytes
 func (r *Remote) GetAvailableMemory(channel chan<- StatResult) {
 	memInfoString, err := r.getMeminfo()
 

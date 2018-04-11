@@ -5,6 +5,7 @@ import (
 	"sync"
 	"log"
 	"sort"
+	"fmt"
 )
 
 type statStore map[string]int
@@ -23,6 +24,9 @@ func init() {
 	state.percentages = make(map[string]int)
 }
 
+const NicetyLoadAvg = "load avg"
+const NicetyAvailable = "available"
+
 func BeginListen(c <-chan NamedPercentageResult, logger *log.Logger) {
 	go ReceiveResults(c)
 	err := t.Init()
@@ -35,7 +39,7 @@ func BeginListen(c <-chan NamedPercentageResult, logger *log.Logger) {
 
 func ReceiveResults(listenerChannel <-chan NamedPercentageResult) {
 	for received := range listenerChannel {
-		// TODO: rethink having to register
+		state.logger.Println("Received result: ", received)
 		state.mutex.Lock()
 		state.percentages[received.Name] = received.Result
 		state.mutex.Unlock()
@@ -57,20 +61,45 @@ func buildGridFromCurrentValues() {
 	for key := range state.percentages {
 		keys = append(keys, key)
 	}
+
+
 	sort.Strings(keys)
 
-	for _, key := range keys {
-		gauge := t.NewGauge()
-		value := state.percentages[key]
-		gauge.BorderLabel = key
-		gauge.Percent = value
-		gauge.Height = 3
+	for _, nicety := range state.percentages.getNicely() {
+		loadGauge := t.NewGauge()
+		memstr := fmt.Sprintf("%3.2f GB",nicety.availableMemInGb);
+		availableMemory := t.NewPar(memstr)
+
+		availableMemory.BorderLabel = nicety.hostPrettyName + " available mem"
+		availableMemory.Height = 3
+
+		loadGauge.BorderLabel = nicety.hostPrettyName + " load"
+		loadGauge.Percent = nicety.loadPercentage
+		loadGauge.Height = 3
+
 		grid.AddRows(
 			t.NewRow(
-				t.NewCol(12, 0, gauge),
+				t.NewCol(9, 0, loadGauge),
+				t.NewCol(3, 0, availableMemory),
 			),
 		)
 	}
+
+	//for _, key := range keys {
+	//	loadGauge := t.NewGauge()
+	//	value := state.percentages[key]
+	//
+	//	loadGauge.BorderLabel = key
+	//	loadGauge.Percent = value
+	//	loadGauge.Height = 3
+	//
+	//
+	//	grid.AddRows(
+	//		t.NewRow(
+	//			t.NewCol(12, 0, loadGauge),
+	//		),
+	//	)
+	//}
 
 	grid.Align()
 	state.grid = grid

@@ -62,6 +62,45 @@ func GetAllDisplayableStats(configFilePath string) []DisplayableStat {
 
 var mainLogger *log.Logger
 
+func DoGetStandardLoad(listenerChannel chan<- NamedPercentageResult, stat DisplayableStat) {
+
+	waiter := sync.WaitGroup{}
+	waiter.Add(2)
+
+	go func(stat DisplayableStat) {
+		defer waiter.Done()
+		loadAvgChannel := make(chan g.StatResult)
+		go stat.Remote.GetLoadMinuteAvg(loadAvgChannel)
+
+		result := <-loadAvgChannel
+
+		if floatVal, ok := g.CheckFloat(result); ok {
+			listenerChannel <- NamedPercentageResult{
+				Name:   stat.Config.Prettyname + "\t" + NicetyLoadAvg,
+				Result: int(floatVal * 100),
+			}
+		}
+	}(stat)
+
+	go func(stat DisplayableStat) {
+		defer waiter.Done()
+		availableMemChannel := make(chan g.StatResult)
+		go stat.Remote.GetAvailableMemory(availableMemChannel)
+
+		result := <-availableMemChannel
+
+		if intVal, ok := g.CheckInt(result); ok {
+			listenerChannel <- NamedPercentageResult{
+				Name:   stat.Config.Prettyname + "\t" + NicetyAvailable,
+				Result: intVal,
+			}
+		}
+	}(stat)
+
+	waiter.Wait()
+
+}
+
 func main() {
 
 	var err error
@@ -81,7 +120,6 @@ func main() {
 	var configFilePath string
 	flag.StringVar(&configFilePath, "file", "config.json", "The path to the configuration json file")
 	statStuff := GetAllDisplayableStats(configFilePath)
-
 
 	mainLogger.Printf("Have %d configs\n", len(statStuff))
 
@@ -106,7 +144,6 @@ func main() {
 	displayResultListenerChannel := make(chan NamedPercentageResult, len(statStuff))
 	go BeginListen(displayResultListenerChannel, mainLogger)
 	exit := false;
-
 	go func() {
 		for range time.Tick(1 * time.Second) {
 			ShowStats()
@@ -115,34 +152,15 @@ func main() {
 
 	group := sync.WaitGroup{}
 
-	mainLogger.Println("beginning listen")
+	mainLogger.Println("Beginning listen")
 	for true {
 
 		for _, toDisplay := range statStuff {
 			group.Add(1)
-			mainLogger.Printf("starting routine for %s\n", toDisplay.Remote.Hostname)
+			mainLogger.Printf("Starting routine for %s\n", toDisplay.Remote.Hostname)
 			go func(d DisplayableStat) {
 				defer group.Done()
-				remote := d.Remote
-				config := d.Config
-				channel := d.LoadChannel
-
-				go remote.GetLoadMinuteAvg(channel)
-				result := <-channel
-
-				floatVal, ok := g.CheckFloat(result)
-				if ok {
-					mainLogger.Printf("Got a result for %s! %.3f\n", config.Prettyname, floatVal)
-					namedResult := NamedPercentageResult{
-						Name:   config.Prettyname,
-						Result: int(floatVal * 100),
-					}
-					displayResultListenerChannel <- namedResult
-
-				} else {
-					mainLogger.Println("Got a bad result from the channel")
-				}
-
+				DoGetStandardLoad(displayResultListenerChannel, d)
 			}(toDisplay)
 		}
 
@@ -159,8 +177,6 @@ func main() {
 		if exit {
 			break
 		}
-		ShowStats()
-
 	}
 
 	mainLogger.Println("shutting down")
