@@ -1,0 +1,17 @@
+{
+  "revision": 1,
+  "hosts": [
+    {
+      "hostname": "localhost:22",
+      "privateKeyPath": "/home/Bobby/.ssh/id_rsa",
+      "username": "alex",
+      "prettyname": "localhost"
+    },
+    {
+      "hostname": "anawshost:22",
+      "privateKeyPath": "/path/to/private/key",
+      "username": "ubuntu",
+      "prettyname": "An aws instance"
+    }
+  ]
+}
