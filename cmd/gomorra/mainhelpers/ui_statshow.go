@@ -8,24 +8,23 @@ import (
 	"fmt"
 )
 
-type statStore map[string]int
+type statStore map[string]NamedPercentageResult
+
 var state = struct {
-	mutex       sync.Mutex
+	mapMutex    sync.Mutex
 	percentages statStore
+	errors      map[string]error
 	grid        *t.Grid
 	logger      *log.Logger
 }{}
 
-func Register(name string) {
-	state.percentages[name] = 0
-}
-
 func init() {
-	state.percentages = make(map[string]int)
+	state.percentages = make(statStore)
 }
 
 const NicetyLoadAvg = "load avg"
 const NicetyAvailable = "available"
+const NicetyError = "error"
 
 func BeginListen(c <-chan NamedPercentageResult, logger *log.Logger) {
 	go ReceiveResults(c)
@@ -40,9 +39,9 @@ func BeginListen(c <-chan NamedPercentageResult, logger *log.Logger) {
 func ReceiveResults(listenerChannel <-chan NamedPercentageResult) {
 	for received := range listenerChannel {
 		state.logger.Println("Received result: ", received)
-		state.mutex.Lock()
-		state.percentages[received.Name] = received.Result
-		state.mutex.Unlock()
+		state.mapMutex.Lock()
+		state.percentages[received.Name] = received
+		state.mapMutex.Unlock()
 	}
 }
 
@@ -62,44 +61,38 @@ func buildGridFromCurrentValues() {
 		keys = append(keys, key)
 	}
 
-
 	sort.Strings(keys)
 
 	for _, nicety := range state.percentages.getNicely() {
-		loadGauge := t.NewGauge()
-		memstr := fmt.Sprintf("%3.2f GB",nicety.availableMemInGb);
-		availableMemory := t.NewPar(memstr)
 
-		availableMemory.BorderLabel = nicety.hostPrettyName + " available mem"
-		availableMemory.Height = 3
+		if nicety.err == nil {
+			loadGauge := t.NewGauge()
+			memstr := fmt.Sprintf("%3.2f GB", nicety.availableMemInGb);
+			availableMemory := t.NewPar(memstr)
 
-		loadGauge.BorderLabel = nicety.hostPrettyName + " load"
-		loadGauge.Percent = nicety.loadPercentage
-		loadGauge.Height = 3
+			availableMemory.BorderLabel = nicety.hostPrettyName + " available mem"
+			availableMemory.Height = 3
 
-		grid.AddRows(
-			t.NewRow(
-				t.NewCol(9, 0, loadGauge),
-				t.NewCol(3, 0, availableMemory),
-			),
-		)
+			loadGauge.BorderLabel = nicety.hostPrettyName + " load"
+			loadGauge.Percent = nicety.loadPercentage
+			loadGauge.Height = 3
+
+			grid.AddRows(
+				t.NewRow(
+					t.NewCol(9, 0, loadGauge),
+					t.NewCol(3, 0, availableMemory),
+				),
+			)
+		} else {
+			errorPar := t.NewPar(nicety.err.Error())
+			errorPar.Height = 3
+			errorPar.BorderLabel = nicety.hostPrettyName + " error"
+
+			grid.AddRows(t.NewRow(
+				t.NewCol(12, 0, errorPar),
+			))
+		}
 	}
-
-	//for _, key := range keys {
-	//	loadGauge := t.NewGauge()
-	//	value := state.percentages[key]
-	//
-	//	loadGauge.BorderLabel = key
-	//	loadGauge.Percent = value
-	//	loadGauge.Height = 3
-	//
-	//
-	//	grid.AddRows(
-	//		t.NewRow(
-	//			t.NewCol(12, 0, loadGauge),
-	//		),
-	//	)
-	//}
 
 	grid.Align()
 	state.grid = grid

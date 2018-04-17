@@ -31,7 +31,7 @@ func getMainLogger() (error, *log.Logger) {
 	return err, mainLogger
 }
 
-func GetAllDisplayableStats(configFilePath string) []DisplayableStat {
+func GetAllDisplayableStats(configFilePath string, channel chan <- NamedPercentageResult) []DisplayableStat {
 	readConfig, err := g.ReadConfigFile(configFilePath)
 
 	if err != nil {
@@ -47,7 +47,8 @@ func GetAllDisplayableStats(configFilePath string) []DisplayableStat {
 
 		err = remote.Open()
 		if err != nil {
-			mainLogger.Fatalln(err.Error())
+			channel <- NamedPercentageResult{Name:config.Prettyname + "\t" + NicetyError, Err: err}
+			mainLogger.Println("Got error on ", config.Prettyname ,":\n", err.Error())
 		}
 
 		listToReturn = append(listToReturn, DisplayableStat{
@@ -117,9 +118,13 @@ func main() {
 	//	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGKILL)
 	//}
 
+	// TODO: the 15 hardcoded in here should be a little smarter
+	displayResultListenerChannel := make(chan NamedPercentageResult, 15)
+	go BeginListen(displayResultListenerChannel, mainLogger)
+
 	var configFilePath string
 	flag.StringVar(&configFilePath, "file", "config.json", "The path to the configuration json file")
-	statStuff := GetAllDisplayableStats(configFilePath)
+	statStuff := GetAllDisplayableStats(configFilePath, displayResultListenerChannel)
 
 	mainLogger.Printf("Have %d configs\n", len(statStuff))
 
@@ -140,12 +145,9 @@ func main() {
 		})
 	})
 
-	// I dunno, 3 seems good
-	displayResultListenerChannel := make(chan NamedPercentageResult, len(statStuff))
-	go BeginListen(displayResultListenerChannel, mainLogger)
 	exit := false;
 	go func() {
-		for range time.Tick(1 * time.Second) {
+		for range time.Tick(2 * time.Second) {
 			ShowStats()
 		}
 	}()
@@ -157,7 +159,7 @@ func main() {
 
 		for _, toDisplay := range statStuff {
 			group.Add(1)
-			mainLogger.Printf("Starting routine for %s\n", toDisplay.Remote.Hostname)
+			//mainLogger.Printf("Starting routine for %s\n", toDisplay.Remote.Hostname)
 			go func(d DisplayableStat) {
 				defer group.Done()
 				DoGetStandardLoad(displayResultListenerChannel, d)
@@ -170,7 +172,7 @@ func main() {
 		case <-quitChan:
 			exit = true
 			break
-		case <-time.After(2 * time.Second):
+		case <-time.After(3 * time.Second):
 			continue
 		}
 

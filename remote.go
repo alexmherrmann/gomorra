@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"bytes"
 	"log"
+	"time"
 )
 
 type Remote struct {
@@ -33,6 +34,7 @@ func (r *Remote) Open() error {
 	config := &ssh.ClientConfig{
 		User: r.username,
 		Auth: r.methods,
+		Timeout: 5 * time.Second,
 		// TODO: Change the below to something more secure in time
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
@@ -40,8 +42,9 @@ func (r *Remote) Open() error {
 
 	createdClient, err := ssh.Dial("tcp", r.Hostname, config)
 	if err != nil {
-		log.Println(err)
-		log.Fatalf("Failed connecting to %s", r.Hostname)
+		r.Logger.Println(err)
+		r.Logger.Println("Failed connecting to ", r.Hostname)
+		return err
 	}
 
 	r.client = createdClient
